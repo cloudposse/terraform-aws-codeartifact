@@ -1,19 +1,10 @@
-#         DELETE ME
-#
-# The above is the README configuration for the Example module itself.
-# Delete from here to the top of file and fill in the template below
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
-
-
 #
 # This is the canonical configuration for the `README.md`
-# Run `make readme` to rebuild the `README.md`
+# Run `atmos readme` to rebuild the `README.md`
 #
 
 # Name of this project
-name: terraform-example-module
+name: terraform-aws-codeartifact
 
 # Logo for this project
 #logo: docs/logo.png
@@ -25,19 +16,19 @@ license: "APACHE2"
 copyrights:
   - name: "Cloud Posse, LLC"
     url: "https://cloudposse.com"
-    year: "2021"
+    year: "2026"
 
 # Canonical GitHub repo
-github_repo: cloudposse/terraform-example-module
+github_repo: cloudposse/terraform-aws-codeartifact
 
 # Badges to display
 badges:
   - name: Latest Release
-    image: https://img.shields.io/github/release/cloudposse/terraform-example-module.svg?style=for-the-badge
-    url: https://github.com/cloudposse/terraform-example-module/releases/latest
+    image: https://img.shields.io/github/release/cloudposse/terraform-aws-codeartifact.svg?style=for-the-badge
+    url: https://github.com/cloudposse/terraform-aws-codeartifact/releases/latest
   - name: Last Updated
-    image: https://img.shields.io/github/last-commit/cloudposse/terraform-example-module.svg?style=for-the-badge
-    url: https://github.com/cloudposse/terraform-example-module/commits
+    image: https://img.shields.io/github/last-commit/cloudposse/terraform-aws-codeartifact.svg?style=for-the-badge
+    url: https://github.com/cloudposse/terraform-aws-codeartifact/commits
   - name: Slack Community
     image: https://slack.cloudposse.com/for-the-badge.svg
     url: https://cloudposse.com/slack
@@ -47,9 +38,39 @@ related:
   - name: "terraform-null-label"
     description: "Terraform module designed to generate consistent names and tags for resources. Use terraform-null-label to implement a strict naming convention."
     url: "https://github.com/cloudposse/terraform-null-label"
+  - name: "terraform-aws-ecr"
+    description: "Terraform module to provision an ECR repository. The container image counterpart of this module, with the same `principals_*` access model."
+    url: "https://github.com/cloudposse/terraform-aws-ecr"
+  - name: "terraform-aws-kms-key"
+    description: "Terraform module to provision a KMS key, for use as the domain's `encryption_key_arn`."
+    url: "https://github.com/cloudposse/terraform-aws-kms-key"
 
 # List any resources helpful for someone to get started. For example, link to the hashicorp documentation or AWS documentation.
 references:
+  - name: "What is AWS CodeArtifact?"
+    description: "CodeArtifact concepts: domains, repositories, upstream repositories and external connections."
+    url: "https://docs.aws.amazon.com/codeartifact/latest/ug/welcome.html"
+  - name: "Working with package groups"
+    description: "Package group definition syntax and how origin controls are inherited."
+    url: "https://docs.aws.amazon.com/codeartifact/latest/ug/package-groups.html"
+  - name: "Editing package origin controls"
+    description: "How origin controls prevent dependency substitution attacks."
+    url: "https://docs.aws.amazon.com/codeartifact/latest/ug/package-origin-controls.html"
+  - name: "Domain policies"
+    description: "Cross-account access to a CodeArtifact domain."
+    url: "https://docs.aws.amazon.com/codeartifact/latest/ug/domain-policies.html"
+  - name: "Repository policies"
+    description: "Cross-account access to a CodeArtifact repository."
+    url: "https://docs.aws.amazon.com/codeartifact/latest/ug/repo-policies.html"
+  - name: "CodeArtifact quotas"
+    description: "Service quotas, including the number of upstream repositories per repository."
+    url: "https://docs.aws.amazon.com/codeartifact/latest/ug/service-limits.html"
+  - name: "aws_codeartifact_domain resource documentation"
+    description: "Terraform AWS provider documentation for the CodeArtifact resources."
+    url: "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/codeartifact_domain"
+  - name: "awscc_codeartifact_package_group resource documentation"
+    description: "Terraform AWS Cloud Control provider documentation for package groups."
+    url: "https://registry.terraform.io/providers/hashicorp/awscc/latest/docs/resources/codeartifact_package_group"
   - name: "Cloud Posse Documentation"
     url: "https://docs.cloudposse.com"
     description: "The Cloud Posse Developer Hub (documentation)"
@@ -65,12 +86,59 @@ references:
 
 # Short description of this project
 description: |-
-  Short
-  description
+  Terraform module to provision an [AWS CodeArtifact](https://docs.aws.amazon.com/codeartifact/latest/ug/welcome.html)
+  domain and its repositories:
+
+  - A CodeArtifact domain, optionally encrypted with a customer managed KMS key, or an existing domain to add repositories to
+  - Repositories with external connections to public registries (PyPI, npm, Maven Central and others) and ordered upstream repositories
+  - Domain and repository permissions policies for read-only and publish access, by IAM principal or by AWS Organization
+  - Repository endpoint URLs for any package format
+  - [Package groups](https://docs.aws.amazon.com/codeartifact/latest/ug/package-groups.html) with origin controls, in the
+    [`modules/package-groups`](modules/package-groups) submodule
 
 # Introduction to the project
 introduction: |-
-  This is an introduction.
+  ### Repositories and upstreams
+
+  `repositories` is a map keyed by repository name. A repository lists other entries of the same map in `upstreams`, in
+  the order CodeArtifact searches them. The common layout is one "store" repository per public registry, holding only
+  the external connection, and internal repositories that list the stores as upstreams. Consumers point their package
+  manager at one internal repository and resolve both private and public packages through it.
+
+  AWS rejects an upstream that does not exist yet, and a Terraform resource cannot depend on another instance of
+  itself, so the module creates repositories in tiers by the depth of their upstream chain. **Chains are capped at a
+  depth of 3**: a repository with no upstreams, one whose upstreams have none, and one whose upstreams are at most one
+  level deep. Cycles, unknown upstream names and deeper chains fail at plan time with an error that names the
+  offending repositories.
+
+  ### Cross-account access
+
+  The `principals_*` and `organizations_*` inputs generate both halves of the resource policy grant:
+
+  - a domain permissions policy allowing `codeartifact:GetAuthorizationToken` and `sts:GetServiceBearerToken`, which
+    every caller needs before it can reach a repository, and
+  - a permissions policy on every repository, allowing read actions, plus `PublishPackageVersion` and
+    `PutPackageMetadata` for the `*_publish_access` inputs.
+
+  A cross-account caller also needs an identity policy that allows the same actions. Callers in the domain owner's
+  account need only the identity policy. Additional statements can be merged in with `domain_policy_document` and the
+  per-repository `policy_document`.
+
+  ### Package groups and the `awscc` provider
+
+  Package groups set origin controls for every package whose name matches a pattern, including packages that do not
+  exist yet. That is the defense against dependency confusion: with publishing allowed and both upstream restrictions
+  set to `BLOCK`, a matching package can only come from a direct publish into the domain, never from a public
+  registry, even if someone registers the same name there.
+
+  The `hashicorp/aws` provider has no package group resource, so the
+  [`modules/package-groups`](modules/package-groups) submodule uses `awscc_codeartifact_package_group` from the
+  `hashicorp/awscc` provider. It is a separate module because Terraform configures every provider a module declares,
+  even one with no resources to plan. Keeping `awscc` out of the root module means that consumers who do not need
+  package groups do not need to configure it.
+
+  A package group pattern is validated by the API at apply time, not at plan time. A prefix match ends in `~`
+  (`/pypi//mycompany~`), and `*` matches a whole segment only (`/npm/@mycompany/*`).
 
 # How to use this module. Should be an easy example to copy and paste.
 usage: |-
@@ -80,36 +148,62 @@ usage: |-
   (which tests and deploys the example on AWS), see [test](test).
 
   ```hcl
-  # Create a standard label resource. See [null-label](https://github.com/cloudposse/terraform-null-label/#terraform-null-label--)
-  module "label" {
-    source  = "cloudposse/label/null"
-    # Cloud Posse recommends pinning every module to a specific version, though usually you want to use the current one
-    # version = "x.x.x"
-
-    namespace = "eg"
-    name      = "example"
-  }
-
-  module "example" {
-    source  = "cloudposse/*****/aws"
+  module "codeartifact" {
+    source = "cloudposse/codeartifact/aws"
     # Cloud Posse recommends pinning every module to a specific version
     # version = "x.x.x"
 
-    example = "Hello world!"
+    namespace = "eg"
+    name      = "packages"
 
-    context = module.label.this
+    # Defaults to the null-label ID. Consumers type this name, so keep it short.
+    domain_name = "eg"
+
+    repositories = {
+      pypi-store = {
+        description         = "Cache of public PyPI"
+        external_connection = "public:pypi"
+      }
+      python = {
+        description = "First-party Python packages, with public PyPI as an upstream"
+        upstreams   = ["pypi-store"]
+      }
+    }
+
+    repository_endpoint_formats = ["pypi"]
+
+    # Read access from another account, for example CI build roles.
+    principals_readonly_access = ["arn:aws:iam::111111111111:role/ci-build"]
+  }
+
+  # Optional. Requires the hashicorp/awscc provider.
+  module "codeartifact_package_groups" {
+    source = "cloudposse/codeartifact/aws//modules/package-groups"
+    # version = "x.x.x"
+
+    domain_name  = module.codeartifact.domain_name
+    domain_owner = module.codeartifact.domain_owner
+
+    package_groups = {
+      # Names starting with `eg` can only be published to the domain, never
+      # ingested from public PyPI.
+      first-party = {
+        pattern           = "/pypi//eg~"
+        publish           = { restriction_mode = "ALLOW" }
+        external_upstream = { restriction_mode = "BLOCK" }
+        internal_upstream = { restriction_mode = "BLOCK" }
+      }
+    }
+
+    namespace = "eg"
+    name      = "packages"
   }
   ```
 
 # Example usage
 examples: |-
   Here is an example of using this module:
-  - [`examples/complete`](https://github.com/cloudposse/terraform-example-module/) - complete example of using this module
+  - [`examples/complete`](https://github.com/cloudposse/terraform-aws-codeartifact/tree/main/examples/complete) - three tiers of repositories, endpoint lookups, a read-only grant and two package groups
 
-# How to get started quickly
-quickstart: |-
-  Here's how to get started...
-
-# Other files to include in this README from the project folder
 include: []
 contributors: []

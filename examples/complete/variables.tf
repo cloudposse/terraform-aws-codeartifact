@@ -1,14 +1,10 @@
 variable "region" {
-  type = string
+  type        = string
+  description = "AWS Region"
 }
 
-variable "example_input" {
-  type        = string
-  description = "The value which will be passed to the example module"
-}
-
-variable "example_input_override" {
-  type        = string
-  default     = null
-  description = "Override for `example_input`"
+variable "repository_endpoint_formats" {
+  type        = list(string)
+  description = "Package formats to look up repository endpoint URLs for"
+  default     = []
 }
