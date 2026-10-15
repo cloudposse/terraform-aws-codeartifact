@@ -108,6 +108,27 @@ resource "aws_codeartifact_repository" "level_0" {
   tags = module.this.tags
 }
 
+# DeleteRepository on a downstream repository returns before CodeArtifact releases its
+# upstream links, so deleting the upstream right away fails with "ConflictException: You
+# can't delete this repository because it's being used as an upstream repository". Each
+# tier therefore waits behind a `time_sleep` that only delays on destroy: Terraform destroys
+# the downstream tier, then the sleep (which waits), then the upstream tier.
+resource "time_sleep" "after_level_0" {
+  count = length(local.repository_names_level_1) > 0 ? 1 : 0
+
+  destroy_duration = var.repository_destroy_delay
+
+  depends_on = [aws_codeartifact_repository.level_0]
+}
+
+resource "time_sleep" "after_level_1" {
+  count = length(local.repository_names_level_2) > 0 ? 1 : 0
+
+  destroy_duration = var.repository_destroy_delay
+
+  depends_on = [aws_codeartifact_repository.level_1]
+}
+
 resource "aws_codeartifact_repository" "level_1" {
   for_each = { for name in local.repository_names_level_1 : name => local.repositories[name] }
 
@@ -131,6 +152,8 @@ resource "aws_codeartifact_repository" "level_1" {
   }
 
   tags = module.this.tags
+
+  depends_on = [time_sleep.after_level_0]
 }
 
 resource "aws_codeartifact_repository" "level_2" {
@@ -159,6 +182,8 @@ resource "aws_codeartifact_repository" "level_2" {
   }
 
   tags = module.this.tags
+
+  depends_on = [time_sleep.after_level_1]
 }
 
 data "aws_codeartifact_repository_endpoint" "default" {

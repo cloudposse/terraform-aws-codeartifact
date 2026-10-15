@@ -39,9 +39,9 @@ variable "package_groups" {
     - `publish`, `external_upstream`, `internal_upstream`: Origin restrictions.
       `restriction_mode` is one of `ALLOW`, `BLOCK`, `ALLOW_SPECIFIC_REPOSITORIES` or
       `INHERIT`. `repositories` lists repository names and is only valid with
-      `ALLOW_SPECIFIC_REPOSITORIES`. Reference them through the root module's
-      `repositories` output (`module.codeartifact.repositories["name"].name`) so
-      that Terraform creates the repositories before the package group. An
+      `ALLOW_SPECIFIC_REPOSITORIES`. The names are plain strings, so add
+      `depends_on = [module.codeartifact]` to this module so that Terraform creates
+      the repositories before the package group. An
       omitted restriction is set to `INHERIT`, which takes the setting of the
       closest parent group.
 

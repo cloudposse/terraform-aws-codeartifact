@@ -126,6 +126,19 @@ variable "repositories" {
   }
 }
 
+variable "repository_destroy_delay" {
+  type        = string
+  description = <<-EOT
+    How long to wait, on destroy, between deleting a tier of repositories and deleting
+    the upstream repositories it used. CodeArtifact releases upstream links
+    asynchronously, so an immediate delete of the upstream fails with a
+    `ConflictException`. Only applies when `repositories` has upstream chains, and
+    never delays create or update
+    EOT
+  default     = "30s"
+  nullable    = false
+}
+
 variable "repository_endpoint_formats" {
   type        = list(string)
   description = <<-EOT

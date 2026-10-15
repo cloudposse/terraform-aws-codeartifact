@@ -63,10 +63,14 @@ module "package_groups" {
       pattern = "/pypi//internal~"
       publish = {
         restriction_mode = "ALLOW_SPECIFIC_REPOSITORIES"
-        repositories     = [module.codeartifact.repositories["packages"].name]
+        repositories     = ["packages"]
       }
     }
   }
 
   context = module.this.context
+
+  # Repositories in an allow list are plain names, so the ordering has to be explicit:
+  # the repositories must exist before a package group that allows them.
+  depends_on = [module.codeartifact]
 }

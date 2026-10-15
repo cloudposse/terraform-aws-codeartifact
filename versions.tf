@@ -9,5 +9,10 @@ terraform {
       source  = "hashicorp/aws"
       version = ">= 6.0.0"
     }
+    # time_sleep delays destroy between repository tiers (see `main.tf`).
+    time = {
+      source  = "hashicorp/time"
+      version = ">= 0.7.0"
+    }
   }
 }
