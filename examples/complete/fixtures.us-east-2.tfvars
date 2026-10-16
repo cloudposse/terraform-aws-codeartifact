@@ -6,7 +6,6 @@ environment = "ue2"
 
 stage = "test"
 
-name = "example"
+name = "codeartifact"
 
-example_input = "Hello, world!"
-
+repository_endpoint_formats = ["pypi", "npm"]

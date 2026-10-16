@@ -1,11 +1,18 @@
 terraform {
-  required_version = ">= 1.0"
+  # 1.3.0 is the floor for `optional()` with defaults, which `repositories` relies
+  # on. 1.4.0 is the floor for `terraform_data`, which hosts the preconditions that
+  # validate the repository upstream graph (see `main.tf`).
+  required_version = ">= 1.4.0"
 
   required_providers {
-    # Update these to reflect the actual requirements of your module
-    random = {
-      source  = "hashicorp/random"
-      version = ">= 2.2"
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 6.0.0"
+    }
+    # time_sleep delays destroy between repository tiers (see `main.tf`).
+    time = {
+      source  = "hashicorp/time"
+      version = ">= 0.7.0"
     }
   }
 }

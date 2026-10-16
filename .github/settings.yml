@@ -1,12 +1,7 @@
 # Upstream changes from _extends are only recognized when modifications are made to this file in the default branch.
 _extends: .github
 repository:
-  name: terraform-example-module
-  description: Example Terraform Module Scaffolding
+  name: terraform-aws-codeartifact
+  description: Terraform module to provision AWS CodeArtifact domains, repositories, upstreams, cross-account access policies and package groups
   homepage: https://cloudposse.com/accelerate
-  topics: ""
-
-
-
-
-
+  topics: terraform, terraform-module, aws, codeartifact, package-registry, pypi, npm, maven, supply-chain-security
