@@ -154,6 +154,16 @@ variable "repository_endpoint_formats" {
 # Permissions
 # ------------------------------------------------------------------------------
 
+variable "domain_policy_document" {
+  type        = string
+  description = <<-EOT
+    JSON IAM policy document whose statements are merged into the domain
+    permissions policy, alongside the statements generated from the `principals_*`
+    and `organizations_*` inputs. Only used when `create_domain` is `true`
+    EOT
+  default     = null
+}
+
 variable "principals_readonly_access" {
   type        = list(string)
   description = <<-EOT
@@ -198,14 +208,4 @@ variable "organizations_publish_access" {
     EOT
   default     = []
   nullable    = false
-}
-
-variable "domain_policy_document" {
-  type        = string
-  description = <<-EOT
-    JSON IAM policy document whose statements are merged into the domain
-    permissions policy, alongside the statements generated from the `principals_*`
-    and `organizations_*` inputs. Only used when `create_domain` is `true`
-    EOT
-  default     = null
 }
