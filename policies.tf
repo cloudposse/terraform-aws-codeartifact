@@ -35,6 +35,17 @@ locals {
     "codeartifact:PublishPackageVersion",
     "codeartifact:PutPackageMetadata",
   ])
+
+  # Package-level actions (DescribePackage, ListPackageVersions, PublishPackageVersion,
+  # PutPackageMetadata and the rest) are authorized against the package ARN, not the
+  # repository ARN. Granting them on the repository alone has no effect, so each
+  # statement also covers every package in that one repository.
+  repository_policy_resources = {
+    for name in local.repository_policy_names : name => [
+      local.repository_resources[name].arn,
+      "${replace(local.repository_resources[name].arn, ":repository/", ":package/")}/*",
+    ]
+  }
 }
 
 data "aws_iam_policy_document" "domain" {
@@ -98,7 +109,7 @@ data "aws_iam_policy_document" "repository" {
       sid       = "PrincipalsReadOnly"
       effect    = "Allow"
       actions   = local.repository_readonly_actions
-      resources = [local.repository_resources[each.key].arn]
+      resources = local.repository_policy_resources[each.key]
 
       principals {
         type        = "AWS"
@@ -113,7 +124,7 @@ data "aws_iam_policy_document" "repository" {
       sid       = "PrincipalsPublish"
       effect    = "Allow"
       actions   = local.repository_publish_actions
-      resources = [local.repository_resources[each.key].arn]
+      resources = local.repository_policy_resources[each.key]
 
       principals {
         type        = "AWS"
@@ -128,7 +139,7 @@ data "aws_iam_policy_document" "repository" {
       sid       = "OrganizationsReadOnly"
       effect    = "Allow"
       actions   = local.repository_readonly_actions
-      resources = [local.repository_resources[each.key].arn]
+      resources = local.repository_policy_resources[each.key]
 
       principals {
         type        = "AWS"
@@ -149,7 +160,7 @@ data "aws_iam_policy_document" "repository" {
       sid       = "OrganizationsPublish"
       effect    = "Allow"
       actions   = local.repository_publish_actions
-      resources = [local.repository_resources[each.key].arn]
+      resources = local.repository_policy_resources[each.key]
 
       principals {
         type        = "AWS"
